@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+    <!-- cd ..  -->
+    <!--  python -m http.server 887 & disown -->
+    <!-- http://localhost:888/Q3.html  -->
+    <!-- import required libraries here -->
+    <script type="text/javascript" src="../lib/d3.v5.min.js"></script>
+    <script type="text/javascript" src="../lib/d3-dsv.min.js"></script>
+    <script type="text/javascript" src="../lib/d3-tip.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+
+
+    <style>
+        /* define CSS rules here */
+        .restaurant {
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid #e6e6e6;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background-color: #fff;
+            display: flex;
+        }
+
+        .restaurant img {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            margin-right: 20px;
+            border-radius: 4px;
+        }
+
+        .restaurant-info {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .restaurant-name {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .restaurant-rating {
+            margin: 0;
+            font-size: 16px;
+            color: #d32323;
+            border-color: #ffffff;
+        }
+
+        .restaurant-location {
+            margin: 10px 0;
+            font-size: 16px;
+            color: black;
+        }
+
+        .restaurant-sentiment .progress-bar {
+            width: 50px;
+            height: 8px;
+            margin-right: 10px;
+            border-radius: 4px;
+            background-color: #e6e6e6;
+        }
+
+        .restaurant-sentiment .progress-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            background-color: #007bff;
+        }
+
+    </style>
+    <title>Yelp Recommendations</title>
+</head>
+<body>
+<p style=display:inline;>Restaurant:</p>
+<select id="restaurantSelect"></select>
+<p style=display:inline;>City:</p>
+<select id="citySelect"></select>
+<p style=display:inline;>User:</p>
+<select id="userSelect"></select>
+<!-- Ref: https://www.w3schools.com/howto/howto_css_search_button.asp -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"/>
+<button type="button" onclick="createRecommendations()"><i class="fa fa-search"></i></button>
+<div id="googleMap" style="width:100%;height:400px;"></div>
+<div id="resultsContainer"></div>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBRpQKYLUZydoTg3AiZh6PjgwWrdZWeMOQ&callback=myMap"></script>
+<script>
+    // enter code to define margin and dimensions for svg
+    height = 500
+    width = 960
+    margin = ({top: 40, right: 60, bottom: 60, left: 80})
+
+    // enter code to create svg
+    var svg = d3.select("div#container").append("svg").attr("preserveAspectRatio", "xMinYMin meet").style("background-color", "#c9e8fd")
+        .attr("viewBox", "0 0 " + width + " " + height)
+        .classed("svg-content", true);
+
+    var restaurants = ["Pizza", "Mexican", "Chinese", "Italian", "American", "Thai", "Vietnamese", "Burgers"]
+    var cities = ["Indianapolis", "Nashville", "Philadelphia", "Tampa", "Tucson"]
+    var users = ["", "User1", "User2", "User3"]
+
+    var restaurantDropdown = d3.select("#restaurantSelect").selectAll("options")
+        .data(restaurants)
+        .enter()
+        .append("option")
+        .text(function (d) {
+            return d;
+        }) // text showed in the menu
+        .attr("value", function (d) {
+            return d;
+        })
+
+    var cityDropdown = d3.select("#citySelect").selectAll("options")
+        .data(cities)
+        .enter()
+        .append("option")
+        .text(function (d) {
+            return d;
+        }) // text showed in the menu
+        .attr("value", function (d) {
+            return d;
+        })
+
+    var userDropdown = d3.select("#userSelect").selectAll("options")
+        .data(users)
+        .enter()
+        .append("option")
+        .text(function (d) {
+            return d;
+        }) // text showed in the menu
+        .attr("value", function (d) {
+            return d;
+        })
+
+
+    function makemap(city_latitude, city_longitude, restaurant_data) {
+        // Creates the city map
+        var mapProp = {
+            center: new google.maps.LatLng(city_latitude, city_longitude),
+            zoom: 10,
+        };
+        var map = new google.maps.Map(document.getElementById("googleMap"), mapProp);
+        map.setOptions({disableDefaultUI: true});
+
+        // Source: https://developers.google.com/maps/documentation/javascript/infowindows
+        for (let i = 0; i < restaurant_data.length; i++) {
+            $.ajax({
+                type: "GET",
+                url: "http://localhost:8080/businesses/" + restaurant_data[i]["business_id"] + "/photos"
+            }).done(function (data) {
+                var marker_size = 25
+                relevance_score_text = "<p><b>Rating </b>" + restaurant_data[i]["stars"] + "</p>"
+                // Restraunts with higher relevance_score have a larger icon
+                if (restaurant_data[i]["relevance_score"] > 0) {
+                    marker_size = restaurant_data[i]["relevance_score"] * 5
+                    relevance_score_text = "<p><b>Rating </b>" + restaurant_data[i]["stars"] + " | <b>Relevance Score </b>" + Math.round(restaurant_data[i]["relevance_score"] * 10) / 10 + "/10</p>"
+
+                }
+                const image = {
+                    url: "http://maps.google.com/mapfiles/ms/icons/red.png",
+                    scaledSize: new google.maps.Size(marker_size, marker_size), // scaled size
+                    origin: new google.maps.Point(0, 0), // origin
+                    anchor: new google.maps.Point(0, 0) // anchor
+                };
+
+                const shape = {
+                    coords: [1, 1, 1, 20, 18, 20, 18, 1],
+                    type: "poly",
+                };
+
+                photo_id = data.photos[0].photo_id
+
+                const details_link = "restaurant_details.html?id=" + restaurant_data[i]["business_id"]
+                const contentString = '<div id="content">' +
+                    '<div id="siteNotice">' +
+                    "</div>" +
+                    "<div><img width='150' height='100' src='" + "../photos/photos/" + photo_id + ".jpg'</div>" +
+                    '<h1 id="firstHeading" class="firstHeading">' + restaurant_data[i]["name"] + '</h1>' +
+                    '<div id="bodyContent">' +
+                    relevance_score_text +
+                    '<p> <a href=' + details_link + '>' +
+                    "View Details</a></p> " +
+                    "</div>" +
+                    "</div>";
+
+                const myLatLng = {
+                    lat: parseFloat(restaurant_data[i]["latitude"]),
+                    lng: parseFloat(restaurant_data[i]["longitude"])
+                };
+
+                const infowindow = new google.maps.InfoWindow({
+                    content: contentString,
+                    ariaLabel: restaurant_data[i]["name"],
+                });
+
+                const marker = new google.maps.Marker({
+                    position: myLatLng,
+                    map,
+                    icon: image,
+                    shape: shape,
+                    title: restaurant_data[i]["name"],
+                });
+
+                marker.addListener("click", () => {
+                    infowindow.open({
+                        anchor: marker,
+                        map,
+                    });
+                });
+
+            });
+
+
+        }
+    }
+
+    function showResults(data) {
+        const resultsContainer = d3.select("#resultsContainer");
+
+        // Remove any existing results
+        resultsContainer.html("");
+
+        // Sort the data by star rating in descending order
+        const sortedData = data.sort((a, b) => b.star_rating - a.star_rating);
+        images_hotfix = ["https://lh3.googleusercontent.com/p/AF1QipMrEday4sJkns9XMGqfQrBPXQ8CrkbMRkI6pbnc=s1360-w1360-h1020"
+            , "https://lh3.googleusercontent.com/p/AF1QipMWOtTd_I_IW_EtcpoM2jv4GqIYU9z3xXApt_0_=s1360-w1360-h1020"
+            , "https://static.spotapps.co/website_images/ab_websites/84514_website/location_01.jpg"]
+        // Display the top 5 results
+        for (let i = 0; i < sortedData.length; i++) {
+            $.ajax({
+                type: "GET",
+                async: false,
+                url: "http://localhost:8080/businesses/" + sortedData[i]["business_id"] + "/photos"
+            }).done(function (data) {
+                const restaurant = sortedData[i];
+
+                // Create a container for the restaurant
+                const restaurantContainer = resultsContainer.append("div").attr("class", "restaurant");
+
+                // Display the restaurant image
+                restaurantContainer
+                    .append("img")
+                    .attr("src", "../photos/photos/" + data.photos[0].photo_id + ".jpg")
+                    .attr("alt", `${restaurant["name"]} sample picture`);
+
+                // Create a container for the restaurant information
+                const restaurantInfoContainer = restaurantContainer.append("div").attr("class", "restaurant-info");
+
+                // Display the restaurant name
+                restaurantInfoContainer.append("h2").attr("class", "restaurant-name").text(restaurant["name"]);
+
+                // Display the restaurant star rating like Yelp
+                const starRatingContainer = restaurantInfoContainer.append("div").attr("class", "restaurant-rating");
+                for (let j = 0; j < Math.floor(restaurant["stars"]); j++) {
+                    starRatingContainer.append("i").attr("class", "fas fa-star text-danger");
+                }
+                if (restaurant["stars"] % 1 !== 0) {
+                    starRatingContainer.append("i").attr("class", "fas fa-star-half-alt text-danger");
+                }
+                starRatingContainer.append("span").text(" (");
+                starRatingContainer.append("span").attr("class", "rating-number").text(restaurant["stars"]).append("span").html("&nbsp;");
+                starRatingContainer.append("span").text("stars)");
+                // Get the location based on bus_lat and bus_long
+                const geocoderApiUrl = `https://api.opencagedata.com/geocode/v1/json?key=d5d8e6cbcac74a86bfba53f8b9218ce7&q=${restaurant["latitude"]},${restaurant["longitude"]}`;
+                d3.json(geocoderApiUrl).then((geocoderData) => {
+                    city = geocoderData.results[0].components.city;
+                    console.log(city)
+                    if (city === undefined) {
+                        city = d3.select("#citySelect").property("value")
+                    }
+                    // Display the restaurant city
+                    restaurantInfoContainer.append("p").attr("class", "restaurant-location").text(`Location: ${city}`);
+
+                    // Display a link to the details page for the restaurant
+                    const detailsLink = restaurantInfoContainer
+                        .append("a")
+                        .attr("href", `restaurant_details.html?id=${restaurant["business_id"]}`)
+                        .text("View Details");
+
+                    // Add a class to the details link for styling
+                    detailsLink.attr("class", "details-link");
+
+                });
+
+                // Display the relevence sentiment score as a progress bar
+                if (restaurant["relevance_score"] > 0) {
+                    const sentimentContainer = restaurantInfoContainer.append("div").attr("class", "restaurant-sentiment");
+                    sentimentContainer.append("br");
+                    sentimentContainer.append("span").text(`Relevance Score: `);
+                    const progressBarContainer = sentimentContainer.append("div").attr("class", "progress-bar");
+                    const progressBarFill = progressBarContainer.append("div").attr("class", "progress-bar-fill");
+                    progressBarFill.style("width", `${restaurant["relevance_score"] * 10}%`);
+                    sentimentContainer.append("span").attr("class", "score-text").text(`(${Math.round(restaurant["relevance_score"] * 10) / 10}/10)`);
+                }
+            });
+        }
+    }
+
+    function createRecommendations(restaurant_data) {
+        user_name = d3.select("#userSelect").property("value")
+
+        user_id = ''
+        if (user_name == 'User1') {
+            user_id = "SD2wTe9oVhG4j2fAwo1yhg"
+        }
+        if (user_name == 'User2') {
+            user_id = "yfFzsLmaWF2d4Sr0UNbBgg"
+        }
+        console.log(+user_name.slice(-1))
+        user_number = +user_name.slice(-1) - 1
+        const selected_city = d3.select("#citySelect").property("value")
+        if (selected_city == 'Indianapolis') {
+            user_list = ['AHRrG3T1gJpHvtpZ-K0G_g', 'wXdbkFZsfDR7utJvbWElyA', '2iS1vg5TYpV_iEiNC8osTg']
+            user_id = user_list[user_number]
+            city_latitude = 39.791000
+            city_longitude = -86.148003
+        }
+        if (selected_city == 'Nashville') {
+            user_list = ['1HM81n6n4iPIFU5d2Lokhw', 'LMvGr9_gUrIwnD2iBS5MlQ', 'Kho08pWNfeGnRbZTnMKy3w']
+            user_id = user_list[user_number]
+            city_latitude = 36.174465
+            city_longitude = -86.767960
+        }
+        if (selected_city == 'Philadelphia') {
+            user_list = ['ET8n-r7glWYqZhuR6GcdNw', '_BcWyKQL16ndpBdggh2kNA', 'WO6L5yMX5LEeJuMNMjerRQ']
+            user_id = user_list[user_number]
+            city_latitude = 39.952583
+            city_longitude = -75.165222
+        }
+        if (selected_city == 'Tampa') {
+            user_list = ['oLjseICFHuisZmxrm6bqxA', 'pou3BbKsIozfH50rxmnMew', '-kLVfaJytOJY2-QdQoCcNQ']
+            user_id = user_list[user_number]
+            city_latitude = 27.964157
+            city_longitude = -82.452606
+        }
+        if (selected_city == 'Tucson') {
+            user_list = ['9Y1YkloHk2MAE3hkwYdFKA', '6ObFF8-uKnOAlXuSH4TlyQ', 'W67nXodRWTIa-d1NJlncvA']
+            user_id = user_list[user_number]
+            city_latitude = 32.253460
+            city_longitude = -110.911789
+        }
+
+        $.ajax({
+            type: "GET",
+            url: "http://localhost:8080/businesses/search",
+            data: {
+                "city": d3.select("#citySelect").property("value"),
+                "categories": d3.select("#restaurantSelect").property("value"),
+                "user_id": user_id,
+                "per_page": "10"
+            },
+            success: function (data, textStatus, xhr) {
+                //console.log(xhr.status);
+                console.log(textStatus);
+                console.log(data.businesses);
+                makemap(city_latitude, city_longitude, data.businesses);
+                showResults(data.businesses);
+            }
+        });
+    }
+
+    function getBusinessDetails(business_id) {
+        const url = `http://localhost:8080/businesses/${business_id}`;
+
+        $.ajax({
+            type: 'GET',
+            url: url,
+            dataType: 'json',
+            success: function (data) {
+                console.log(data);
+                // Redirect to restaurant_details.html with the business data
+                const params = new URLSearchParams();
+                params.append("business_id", data["business_id"]);
+                params.append("name", data["name"]);
+                params.append("stars", data["stars"]);
+                params.append("review_count", data["review_count"]);
+                params.append("categories", data["categories"]);
+                params.append("latitude", data["latitude"]);
+                params.append("longitude", data["longitude"]);
+                params.append("address", data["address"]);
+                params.append("city", data["city"]);
+                params.append("state", data["state"]);
+                params.append("postal_code", data["postal_code"]);
+                params.append("phone", data["phone"]);
+                params.append("url", data["url"]);
+                params.append("image_url", data["image_url"]);
+                params.append("price_range", data["price_range"]);
+                params.append("cuisine", data["cuisine"]);
+                params.append("menu", data["menu"]);
+                params.append("sentiment_score", data["sentiment_score"]);
+                window.location.href = `restaurant_details.html?${params.toString()}`;
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                console.log(`Error getting restaurant details for ${business_id}: ${textStatus}`);
+            }
+        });
+    }
+</script>
+</body>
+</html>
+

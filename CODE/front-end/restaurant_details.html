@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Restaurant Details</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="restaurant_details.css">
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="row">
+        <div class="col-md-12 col-lg-6">
+            <div id="restaurant-info" class="card mb-4">
+                <div class="card-body">
+                    <h1 class="card-title restaurant-name"></h1>
+                    <p class="card-text restaurant-address"></p>
+                </div>
+            </div>
+            <div id="restaurant-categories" class="card mb-4">
+                <div class="card-body">
+                    <h2 class="card-title">Specialties</h2>
+                    <div class="card-text restaurant-categories"></div>
+                </div>
+            </div>
+            <div id="restaurant-price-range" class="card mb-4">
+                <div class="card-body">
+                    <h2>Price Range</h2>
+                    <div class="restaurant-price-range"></div>
+                </div>
+            </div>
+            <div id="restaurant-reviews" class="card mb-4">
+                <div class="card-body">
+                    <h2 class="card-title reviews-heading">Reviews</h2>
+                    <p class="card-text restaurant-rating"></p>
+                    <p class="card-text restaurant-review-count"></p>
+                </div>
+            </div>
+
+            <div id="restaurant-hours" class="card mb-4">
+                <div class="card-body">
+                    <h2 class="card-title hours-heading">Hours of Operation</h2>
+                    <div class="card-text hours-container"></div>
+                </div>
+            </div>
+
+            <div id="restaurant-photos" class="card mb-4">
+                <div class="card-body">
+                    <h2 class="card-title">Photos</h2>
+                    <div class="card-text" id="restaurant-photos-container"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-12 col-lg-6">
+            <div id="restaurant-attributes" class="card mb-4">
+                <div class="card-body">
+                    <h2 class="card-title">Amenities and Services</h2>
+                    <div class="card-text restaurant-attributes"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+<script src="restaurant_details.js"></script>
+
+</body>
+</html>
